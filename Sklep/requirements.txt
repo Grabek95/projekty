@@ -1,0 +1,23 @@
+# ====================================================================
+# PLIK ZALEŻNOŚCI PYTHON DLA SYSTEMU AUTOMATYZACJI RAPORTÓW
+# ====================================================================
+# Instrukcja instalacji:
+# pip install -r requirements.txt
+# ====================================================================
+
+# pyodbc - Biblioteka do łączenia z bazami danych ODBC (SQL Server)
+# Wymagany ODBC Driver 17 for SQL Server zainstalowany w systemie
+pyodbc>=4.0.35
+
+# pandas - Biblioteka do przetwarzania i analizy danych tabelarycznych
+# Używana do konwersji wyników SQL do DataFrame i eksportu do Excel
+pandas>=1.3.0
+
+# openpyxl - Silnik do zapisu plików Excel (.xlsx)
+# Wymagany przez pandas do eksportu w formacie xlsx
+openpyxl>=3.0.9
+
+# ====================================================================
+# UWAGA: tkinter jest biblioteką standardową Python i nie wymaga instalacji
+# Jest używana do tworzenia interfejsu graficznego (GUI)
+# ====================================================================
