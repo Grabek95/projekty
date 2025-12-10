@@ -65,6 +65,8 @@ def counter():
     count = len(zakupy)
     print(f"Liczba produktów w liście to: {count}")
 
+    # pozostał while oraz zapis do txt
+
 zakupy = [] # pusta lista zakupów
 
 while True:
