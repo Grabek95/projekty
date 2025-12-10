@@ -6,7 +6,7 @@ def show_menu():
     """Wyświetlanie menu opcji"""
     print("\n" + "="*30)
     print("=== LISTA ZAKUPÓW ===")
-    print*("="*30)
+    print("="*30)
     print("1. Dodaj produkt")
     print("2. Usuń produkt")
     print("3. Wyświetl listę")
@@ -20,7 +20,7 @@ def show_menu():
 def add_product():
     product = input("Podaj produkt: ").lower()
 
-    if produkt not in zakupy:
+    if product not in zakupy:
         zakupy.append(product)
         print(f"Dodano {product} do listy.")
     else:
@@ -41,9 +41,29 @@ def delete_product():
     else:
         print("Produkt nie znaleziony!")
 
+def show_list():
+    if not zakupy:
+        print("Lista zakupów jest pusta!")
+        return
 
+    print("Twoja lista zakupów:\n")
+    for indeks, element in enumerate(zakupy, start=1):
+        print(f"{indeks}. {element}")
 
+def sort_list():
+    if not zakupy:
+        print("Lista zakupów jest pusta!\nSortowanie niemożliwe!")
+        return
+    
+    zakupy.sort()
+    print("Posrotowana lista zakupów!")
 
+def counter():
+    if not zakupy:
+        print("Lista zakupów jest pusta\nPrzeliczenie produktów niemożliwe!")
+        return
+    count = len(zakupy)
+    print(f"Liczba produktów w liście to: {count}")
 
 zakupy = [] # pusta lista zakupów
 
