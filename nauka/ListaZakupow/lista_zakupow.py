@@ -4,9 +4,9 @@
 
 def show_menu():
     """Wyświetlanie menu opcji"""
-    print("\n" + "="*30)
-    print("=== LISTA ZAKUPÓW ===")
-    print("="*30)
+    print("\n" + "="*31)
+    print(" "*5 + "=== LISTA ZAKUPÓW ===")
+    print("="*31)
     print("1. Dodaj produkt")
     print("2. Usuń produkt")
     print("3. Wyświetl listę")
@@ -27,7 +27,7 @@ def add_product():
         print("Produkt już istnieje na liście zakupów!")
 
 def delete_product():
-    if len(zakupy) == 0:
+    if not zakupy:
         print("Lista zakupów jest pusta!")
         return
         
@@ -60,37 +60,59 @@ def sort_list():
 
 def counter():
     if not zakupy:
-        print("Lista zakupów jest pusta\nPrzeliczenie produktów niemożliwe!")
+        print("Lista zakupów jest pusta\nPrzeliczenie niemożliwe!")
         return
     count = len(zakupy)
     print(f"Liczba produktów w liście to: {count}")
 
-    # pozostał while oraz zapis do txt
+def clear_list():
+    if not zakupy:
+        print("Lista zakupów jest pusta\nWyczyszczenie listy niemożliwe!")
+        return
+    zakupy.clear()
+    print("Lista została wyczyszczona!")
+
+def save_to_txt():
+    if not zakupy:
+        print("Lista zakupów jest pusta!\nZapis do pliku niemożliwy!")
+        return
+    
+    with open ("zakupy.txt", "w", encoding = "utf-8") as plik:
+        for indeks, element in enumerate(zakupy, start=1):
+            plik.write(f"{indeks}. {element}\n")
+
+    print("Zapisano do pliku!")
 
 zakupy = [] # pusta lista zakupów
 
-while True:
-    print("\n=== LISTA ZAKUPÓW ===")
-    print("1. Dodaj produkt")
-    print("2. Pokaż listę")
-    print("3. Wyjście")
+def main():
 
-    wybor = input("Wybierz opcję (1-3): ")
+    while True:
+        show_menu()
 
-    if wybor == "1":
-        produkt = input("Nazwa produktu: ")
-        zakupy.append(produkt)
-        print(f"Dodano: {produkt}")
+        choice = input("Wybierz opcję: ")
 
-    elif wybor == "2":
-        print("\n Twoja lista: ")
-        if zakupy:
-            for i, produkt in enumerate(zakupy, 1):
-                print(f" {i}.{produkt}")
-            else:
-                print("Lista jest pusta!")
-    elif wybor == "3":
-        print("Do widzenia!")
-        break
-    else:
-        print("Niepoprawna opcja!")
+        if choice == "1": # dodaj produkt
+            add_product() 
+        elif choice == "2": # usuń produkt
+            delete_product() 
+        elif choice == "3": # pokaż listę
+            show_list()
+        elif choice == "4": # posortuj listę
+            sort_list()
+        elif choice == "5": # wyjście
+            print("Do widzenia!")
+            break
+        elif choice == "6": # licznik
+            counter()
+        elif choice == "7": # wyczyść listę
+            clear_list()
+        elif choice == "8": # zapis do pliku
+            save_to_txt()
+        else:
+            print("Nieprawidłowa opcja!")
+
+        input("\nNaciśnij Enter, aby kontynuować...")
+
+if __name__ == "__main__":
+    main()
