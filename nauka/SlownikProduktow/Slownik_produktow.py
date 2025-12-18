@@ -57,7 +57,7 @@ def delete_product():
     del products[product]
     print("Usunięto produkt ze słownika!")
 
-def show_products():
+def show_products(): # pokazywanie produktów
     if not products:
         print("Słownik produktów jest pusty!")
         return
