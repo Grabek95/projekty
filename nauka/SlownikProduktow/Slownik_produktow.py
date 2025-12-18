@@ -56,3 +56,28 @@ def delete_product():
     
     del products[product]
     print("Usunięto produkt ze słownika!")
+
+def show_products():
+    if not products:
+        print("Słownik produktów jest pusty!")
+        return
+    
+    print("Twój słownik produktów:\n")
+    for indeks, (nazwa, dane) in enumerate(products.items(), start=1):
+        print(f'{indeks}. {nazwa}: "cena": {dane["cena"]}, '
+            f'"ilość": {dane["ilość"]}, "kategoria": {dane["kategoria"]}'
+        )
+
+def sort_products(): # sortowanie produtków
+    if not products:
+        print("Słownik produktów jest pusty\nSortowanie niemożliwe!")
+        return
+    
+    lambda: nazwa
+    sorted_items = sorted(products.items(), key = lambda)
+
+    print("Posortowany słownik produktów\n")
+    for indeks, (nazwa, dane) in enumerate(sorted_items, start=1):
+        print(f'{indeks}. {nazwa}: "cena": {dane["cena"]}, '
+            f'"ilość": {dane["ilość"]}, {dane["kategoria"]}'
+            )
