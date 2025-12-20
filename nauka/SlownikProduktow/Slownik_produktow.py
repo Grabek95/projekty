@@ -38,7 +38,7 @@ def add_product(products): # funkcja dodaj produkt do słownika
         return
     category = input("Podaj kategorię produktu: ").lower().strip()
 
-    products[product] = {
+    products[product] = { # dorzucamy wszystkie wartości, które podaliśmy do słownika produktów
         "cena": price,
         "ilość": quantity,
         "kategoria": category
