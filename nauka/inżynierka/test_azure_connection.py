@@ -12,7 +12,7 @@ password = 'b64#ZkpR_37TnLsD'
 
 # Connection string
 conn_str = (
-    f'Driver={{ODBC Driver 17 for SQL Server}};'
+    f'Driver={{ODBC Driver 18 for SQL Server}};'
     f'Server=tcp:{server},1433;'
     f'Database={database};'
     f'Uid={username};'
