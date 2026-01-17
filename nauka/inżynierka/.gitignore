@@ -1,0 +1,74 @@
+# ============================================
+# PRACA INŻYNIERSKA - .gitignore
+# ============================================
+
+# === WRAŻLIWE DANE - NIGDY NIE COMMITUJ! ===
+credentials.txt
+credentials.md
+hasla.txt
+hasla.md
+passwords.txt
+passwords.md
+config.py
+local.settings.json
+*.env
+.env
+
+# Foldery z hasłami
+/credentials/
+/hasla/
+
+# === DANE TESTOWE I PRODUKCYJNE ===
+*.csv
+*.xlsx
+*.xls
+/dane/
+/data/
+
+# === SCREENSHOTY (mogą zawierać wrażliwe dane) ===
+*password*.png
+*credentials*.png
+*haslo*.png
+
+# === PYTHON ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# === JUPYTER NOTEBOOKS (checkpoints) ===
+.ipynb_checkpoints/
+
+# === VS CODE ===
+.vscode/
+*.code-workspace
+
+# === SYSTEM ===
+.DS_Store
+Thumbs.db
+*.tmp
+~$*.docx
+~$*.xlsx
+
+# === LOGS ===
+*.log
+logs/
+
+# === AZURE FUNCTIONS ===
+local.settings.json
+__blobstorage__/
+__queuestorage__/
+__azurite_db*__.json
+
+# === BACKUP FILES ===
+*.bak
+*.backup
+*.old
