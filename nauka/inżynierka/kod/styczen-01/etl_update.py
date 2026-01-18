@@ -103,7 +103,7 @@ try:
 
     rows = cursor.fetchall()
 
-    print("\nID | Produkt    | Ilość | Cena")
+    print("\nID | Produkt      | Ilość | Cena")
     print("-" * 50)
     for row in rows:
         print(f"{row.id:2} | {row.produkt:12} | {row.ilosc:5} | {row.cena:7.2f}")
