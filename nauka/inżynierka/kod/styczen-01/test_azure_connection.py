@@ -8,7 +8,7 @@ import pandas as pd
 server = 'sql-praca-mateusz.database.windows.net'
 database = 'db-praca-inzynierska'
 username = 'sqladmin' 
-password = 'password' # wpisać właściwe hasło
+password = 'haslo' # wpisać właściwe hasło
 
 # Connection string
 conn_str = (
