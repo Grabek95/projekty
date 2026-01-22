@@ -11,7 +11,7 @@ print("=" * 60)
 SERVER = 'sql-praca-mateusz.database.windows.net'
 DATABASE = 'db-praca-inzynierska'
 USERNAME = 'sqladmin' 
-PASSWORD = 'b64#ZkpR_37TnLsD' # wpisać właściwe hasło
+PASSWORD = 'haslo' # wpisać właściwe hasło
 
 try:
     # użycie context manager z db_utils - prostsze!
