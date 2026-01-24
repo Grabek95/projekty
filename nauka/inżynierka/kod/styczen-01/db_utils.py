@@ -2,7 +2,7 @@
 # funkcje pomocnicze do pracy z Azure SQL Database
 
 import pyodbc
-from typing import list, Tuple, Optional # import type odpowiednio: Lista, Krotka, Opcjonalny
+from typing import List, Tuple, Optional # import type odpowiednio: Lista, Krotka, Opcjonalny
 
 class AzureSQLConnection: # utworzenie klasy = szablon do tworzenia obiektów połączeń
     """
@@ -113,7 +113,7 @@ class AzureSQLConnection: # utworzenie klasy = szablon do tworzenia obiektów po
             self.cursor.execute(query)
         return self.cursor.fetchone() # zwróć jeden wiersz
     
-    def bulk_insert(self, table: str, columns: list[str], data: list[Tuple]): # columns: List[str] = lista stringów
+    def bulk_insert(self, table: str, columns: list[str], data: List[Tuple]): # columns: List[str] = lista stringów
         # data: List[Tuple] = lista krotek
         """
         Bulk INSERT wielu rekordów naraz.
@@ -205,7 +205,7 @@ def get_credentials_from_file(filepath: str = "credentials.txt") -> dict:
         
     return credentials
     
-def print_table(rows, headers: list[str], widths: Optional[list[int]] = None):
+def print_table(rows, headers: List[str], widths: Optional[List[int]] = None):
     """
     Wyświetl wyniki w formnie ładnej tabeli
 
@@ -245,7 +245,7 @@ if __name__ == "__main__":
     SERVER = 'sql-praca-mateusz.database.windows.net'
     DATABASE = 'db-praca-inzynierska'
     USERNAME = 'sqladmin'
-    PASSWORD = 'YOUR_PASSWORD_HERE'  # uzupełnić
+    PASSWORD = 'YourPasswordHere'  # uzupełnić
 
     try:
         #użycie context managera (automatyczne zamknięcie) z with
