@@ -45,3 +45,62 @@ try:
 
     # krok 2: Download z BLob i parse CSV
     print("\nKROK 2: Download z Blob i parse CSV")
+
+    print(f"Pobieram {BLOB_NAME} z Blob...")
+
+    download_stream = blob_client.download_blob()
+    # pobierz plik jako stream
+
+    csv_content = download_stream.readall().decode('utf-8')
+    # readall() = wczytaj wszystko jako bytes
+    # decode('utf-8') = zamień bytes na string
+    # utf-8 = kodowanie znaków (obsługuje polskie znaki)
+
+    print(f"Pobrano {len(csv_content)} znaków")
+
+    # parse CSV z pamięci (bez zapisywania na dysku)
+    print("Parsuję CSV...")
+
+    csv_reader = csv.DictReader(io.StringIO(csv_content))
+    # io.StringIO() = tworzy "plik" w pamięci ze stringa
+    # csv.DictReader() = czyta CSV jako słowniki
+    # każy wiersz = {'produkt': 'Laptop', 'ilosc': '2', 'cena': '4999.99'}
+
+    rows = list(csv_reader)
+    # zamień iterator na listę
+
+    print(f"Wczytano {len(rows)} wierszy danych")
+    print(f"Kolumny: {list(rows[0].keys())}")
+    # rows[0].keys() = nazwy kolumn z pierwszego wiersza
+
+    # pokaż pierwsze 3 wiersze
+    print("\nPierwsze 3 wiersze:")
+    for i, row in enumerate(rows[:3], 1):
+        # enumerate(lista, 1) = numeruj od 1
+        print(f"    {i}. {row['produkt']}: {row['ilosc']} szt. x {row['cena']} zł")
+
+    # krok 3 INSERT do Azure SQL
+    print("\nKROK 3: INSERT danych do Azure SQL Database")
+
+    print("Łączę się z Azure SQL...")
+
+    with AzureSQLConnection(SQL_SERVER, SQL_DB, SQL_USER, SQL_PASS) as db:
+        # context manager - automatycznie zamknięcie i commit
+
+        print(f"Połączona z bazą {SQL_DB}")
+
+        # sprawdz ile rekordow przed
+        count_before = db.get_count('TestSprzedaz')
+        print(f"Rekordów przed INSERT: {count_before}")
+
+        # przygotuj dane do bulk insert
+        # zamień słowniki na tuple (produkt, ilosc, cena)
+        data = []
+        for row in rows:
+            produkt = row['produkt']
+            ilosc = int(row['ilosc']) # zamien string na int
+            cena = float(row['cena']) # zamien string na float
+            data.append((produkt, ilosc, cena))
+
+        print(f"Wstawiam {len(data)} rekordów...")
+        
