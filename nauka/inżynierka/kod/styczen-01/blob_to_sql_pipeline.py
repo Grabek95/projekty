@@ -26,7 +26,7 @@ BLOB_NAME = f"import_{TIMESTAMP}.csv"
 
 try:
     # krok 1: upload csv do Blob (raw)
-    print("\nKROK 1: Upload CSV do BLob Storage (container: raw)")
+    print("\nKROK 1: Upload CSV do Blob Storage (container: raw)")
 
     blob_service = BlobServiceClient.from_connection_string(BLOB_CONNECTION)
     # połączenie z Blob Storage
@@ -43,7 +43,7 @@ try:
     file_size = blob_client.get_blob_properties().size
     print(f"Wgrano pomyślnie! Rozmiar: {file_size} bytes")
 
-    # krok 2: Download z BLob i parse CSV
+    # krok 2: Download z Blob i parse CSV
     print("\nKROK 2: Download z Blob i parse CSV")
 
     print(f"Pobieram {BLOB_NAME} z Blob...")
@@ -64,7 +64,7 @@ try:
     csv_reader = csv.DictReader(io.StringIO(csv_content))
     # io.StringIO() = tworzy "plik" w pamięci ze stringa
     # csv.DictReader() = czyta CSV jako słowniki
-    # każy wiersz = {'produkt': 'Laptop', 'ilosc': '2', 'cena': '4999.99'}
+    # każdy wiersz = {'produkt': 'Laptop', 'ilosc': '2', 'cena': '4999.99'}
 
     rows = list(csv_reader)
     # zamień iterator na listę
@@ -87,7 +87,7 @@ try:
     with AzureSQLConnection(SQL_SERVER, SQL_DB, SQL_USER, SQL_PASS) as db:
         # context manager - automatycznie zamknięcie i commit
 
-        print(f"Połączona z bazą {SQL_DB}")
+        print(f"Połączono z bazą {SQL_DB}")
 
         # sprawdz ile rekordow przed
         count_before = db.get_count('TestSprzedaz')
@@ -104,3 +104,68 @@ try:
 
         print(f"Wstawiam {len(data)} rekordów...")
         
+        # bulk insert przez db_utils
+        inserted_count = db.bulk_insert(
+            table='TestSprzedaz',
+            columns=['produkt', 'ilosc', 'cena'],
+            data=data
+        )
+
+        print(f"Wstawiono {inserted_count} rekordów.")
+
+        # sprawdź ile rekordów po
+        count_after = db.get_count('TestSprzedaz')
+        print(f"Rekordów po INSERT: {count_after}")
+        print(f"Dodano: {count_after - count_before} rekordów")
+
+    # krok 4: kopiuj container do "processed"
+    print("\nKROK 4: Kopiuj plik do container 'processed'")
+
+    processed_container = blob_service.get_container_client("processed")
+    # container dla przetworzonych danych
+
+    dest_blob = processed_container.get_blob_client(BLOB_NAME)
+    # TAKA SAMA NAZWA JAK W RAW
+
+    print(f"Kopiuję '{BLOB_NAME}' z 'raw' do 'processed'...")
+
+    # kopiuj blob (w Azure, bez pobierania lokalnie!)
+    source_url = blob_client.url
+    # URL do źródłowego blob
+
+    dest_blob.start_copy_from_url(source_url)
+    # start_copy_from_url() = kopiuje blob w Azure (szybkie!)
+    # Alternatywa: pobierz lokalnie i wgraj ponownie (wolniejsze)
+
+    print("Skopiowano do 'processed'!")
+
+    # PODSUMOWANIE
+    print("\nPIPELINE ZAKOŃCZONY POMYŚLNIE!")
+
+    print("\nPodsumowanie:")
+    print(f"    1. Plik źródłowy: {LOCAL_CSV}")
+    print(f"    2. Upload do Blob (raw): {BLOB_NAME}")
+    print(f"    3. Wierszy CSV: {len(rows)}")
+    print(f"    4. INSERT do SQL: {inserted_count} rekordów")
+    print(f"    5. Kopia w Blob (processed): {BLOB_NAME}")
+
+    print("\nLokalizacje:")
+    print(f"    Blob (raw): {blob_client.url}")
+    print(f"    Blob (processed): {dest_blob.url}")
+    print(f"    SQL Database: {SQL_SERVER}/{SQL_DB}/TestSprzedaz")
+
+    print("\nDane pomyślnie przetworzone i zapisane w chmurze Azure!")
+
+except FileNotFoundError:
+    print(f"\nBŁĄD: Plik '{LOCAL_CSV}' nie istnieje!")
+    print("Upewnij się, że plik jest w tym samym folderze co skrypt")
+
+except Exception as e:
+    print(f"\nBŁĄD: {e}")
+    print("\nSprawdź:")
+    print(f"    1. Connection String do Blob")
+    print(f"    2. Hasło do SQL Database")
+    print(f"    3. Czy containery 'raw' i 'processed' istnieją")
+    print(f"    4. Czy tabela 'TestSprzedaz' istnieje")
+
+input("\nNaciśnij Enter aby zakończyć")
