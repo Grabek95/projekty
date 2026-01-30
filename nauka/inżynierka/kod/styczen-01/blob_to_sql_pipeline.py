@@ -11,7 +11,7 @@ print("PIPELINE: CSV -> Blob -> SQL -> Blob(Processed)")
 
 # konfiguracja
 # blob storage
-BLOB_CONNECTION = "YOUR_BLOB_CONNECTION_HERE" # uzupełnic o prawdziwy
+BLOB_CONNECTION = "YOUR_CONNECTION_STRING_HERE" # uzupełnic o prawdziwy
 
 # Azure SQL
 SQL_SERVER = 'sql-praca-mateusz.database.windows.net'
@@ -51,7 +51,7 @@ try:
     download_stream = blob_client.download_blob()
     # pobierz plik jako stream
 
-    csv_content = download_stream.readall().decode('utf-8')
+    csv_content = download_stream.readall().decode('utf-8-sig')
     # readall() = wczytaj wszystko jako bytes
     # decode('utf-8') = zamień bytes na string
     # utf-8 = kodowanie znaków (obsługuje polskie znaki)
