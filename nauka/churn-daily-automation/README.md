@@ -7,8 +7,8 @@ Automated daily churn data collection and reporting system for telecommunication
 - **Automated data collection** from multiple sources:
   - PLK: Outlook email (HTML table parsing)
   - Netia: Outlook email (MultiIndex table parsing)
-  - CP: Teradata SQL query
-- **Intelligent data storage** in Teradata database
+  - CP: Database SQL query
+- **Intelligent data storage** in database
 - **Smart INSERT/UPDATE logic** based on month existence
 - **Error handling** with partial data saving
 - **Windows Task Scheduler integration** for daily execution
@@ -36,9 +36,9 @@ churn-daily-automation/
 ### Prerequisites
 
 - Python 3.14+
-- Teradata ODBC Driver 16.20
+- Database ODBC Driver 16.20+
 - Microsoft Outlook (Windows)
-- Access to Teradata database
+- Access to corporate database
 
 ### Installation
 
@@ -70,20 +70,17 @@ Create `Pass.xlsx` in your user directory with:
 python backend/scripts/churn_daily.py
 ```
 
-**Automated execution (Windows Task Scheduler):**
+**Automated execution:**
 
-1. Open Task Scheduler
-2. Import task from `automation/uruchom_churn.bat`
-3. Configure to run daily at 14:00
+1. Use the provided batch file
+2. Schedule to run daily via Windows Task Scheduler
 
 ## 📊 Data Flow
 
 ```
-Outlook (PLK) ──┐
-                ├──> Python Script ──> Teradata Database ──> Excel Power Query
-Outlook (Netia)─┤
-                │
-Teradata (CP) ──┘
+Email Sources ──┐
+                ├──> Python Script ──> Database ──> Reporting
+SQL Queries ────┘
 ```
 
 ## 🔧 Technical Details
@@ -93,23 +90,23 @@ Teradata (CP) ──┘
 1. **PLK** (Polkomtel)
    - Source: Daily email with HTML table
    - Products: BIZ, DATA, DATA_FTTH, IND, MIX
-   - Arrival: 9:30-10:00
+   - Arrival: Morning (~9-10 AM)
 
 2. **Netia**
    - Source: Daily email with MultiIndex HTML table
    - Products: BB OFFNET, BB ONNET, MOBILE, TV, VOICE OFFNET, VOICE ONNET
-   - Arrival: 12:50-13:00
+   - Arrival: Midday (~12-13 PM)
    - Note: Data appears after 10th of month
 
 3. **CP** (Cyfrowy Polsat)
-   - Source: Teradata SQL query
-   - Products: TV (Kontrakt TV), IN (Internet)
+   - Source: Database SQL query
+   - Products: TV, Internet
    - Real-time data
 
 ### Database Schema
 
 ```sql
-CREATE TABLE db_work_dwn.Churn_Daily (
+CREATE TABLE schema_name.Churn_Daily (
     DATA_RAPORTU DATE,
     SPOLKA VARCHAR(10),
     PRODUKT VARCHAR(20),
@@ -121,11 +118,11 @@ CREATE TABLE db_work_dwn.Churn_Daily (
 ## Roadmap
 
 - [x] Automated data collection
-- [x] Teradata integration
+- [x] Database integration
 - [x] Error handling
 - [x] Task Scheduler automation
-- [ ] FastAPI backend
-- [ ] React dashboard
+- [x] FastAPI backend
+- [x] React dashboard
 - [ ] Manual data entry interface
 - [ ] SQL playground
 - [ ] Month-to-month comparisons
