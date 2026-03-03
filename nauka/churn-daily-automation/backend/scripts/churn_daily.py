@@ -14,6 +14,14 @@ import os
 import warnings
 warnings.filterwarnings('ignore')
 
+def get_wartosc_plk(df, linia_nazwa):
+    wynik = df.loc[df['Linia'] == linia_nazwa, 'Wykonanie']
+    if len(wynik) > 0:
+        return wynik.values[0]
+    else:
+        print(f"UWAGA: Brak linii {linia_nazwa} w PLK!")
+        return None
+
 def outlook_connect():
     try:
         # połączenie z outlook
@@ -43,7 +51,7 @@ def Teradata_connect():
     except Exception as e:
         print(f"Błąd połączenia: {e}")
         return None
-
+    
 def pobierz_plk():
     try:
         # Filtr dla PLK
@@ -61,11 +69,11 @@ def pobierz_plk():
         if len(tabele) > 0:
             df_plk = tabele[0]                
             # Wyciągamy wartości z kolumny "Wykonanie"
-            biz = df_plk.loc[df_plk['Linia'] == 'BIZ', 'Wykonanie'].values[0]
-            data = df_plk.loc[df_plk['Linia'] == 'DATA', 'Wykonanie'].values[0]
-            data_ftth = df_plk.loc[df_plk['Linia'] == 'DATA_FTTH', 'Wykonanie'].values[0]
-            ind = df_plk.loc[df_plk['Linia'] == 'IND', 'Wykonanie'].values[0]
-            mix = df_plk.loc[df_plk['Linia'] == 'MIX', 'Wykonanie'].values[0]
+            biz = get_wartosc_plk(df_plk, 'BIZ')
+            data = get_wartosc_plk(df_plk, 'DATA')
+            data_ftth = get_wartosc_plk(df_plk, 'DATA_FTTH')
+            ind = get_wartosc_plk(df_plk, 'IND')
+            mix = get_wartosc_plk(df_plk, 'MIX')
             # Sumujemy DATA + DATA_FTTH
             data_total = data + data_ftth
             print("\n--- Wartości CHURN PLK ---")
@@ -199,11 +207,17 @@ def zapisz_do_bazy(conn, dane_plk, dane_cp, dane_netia):
         dane = []
         if dane_plk is not None:
             biz, data, data_ftth, ind, mix = dane_plk
-            dane.append((dzis, 'PLK', 'BIZ',       int(biz),        str(datetime.now().strftime("%Y%m"))))
-            dane.append((dzis, 'PLK', 'DATA',       int(data), str(datetime.now().strftime("%Y%m"))))
-            dane.append((dzis, 'PLK', 'DATA_FTTH',  int(data_ftth), str(datetime.now().strftime("%Y%m"))))
-            dane.append((dzis, 'PLK', 'IND',        int(ind),        str(datetime.now().strftime("%Y%m"))))
-            dane.append((dzis, 'PLK', 'MIX',        int(mix),        str(datetime.now().strftime("%Y%m"))))
+
+            if biz is not None:
+                dane.append((dzis, 'PLK', 'BIZ',       int(biz),        str(datetime.now().strftime("%Y%m"))))
+            if data is not None:
+                dane.append((dzis, 'PLK', 'DATA',       int(data), str(datetime.now().strftime("%Y%m"))))
+            if data_ftth is not None:
+                dane.append((dzis, 'PLK', 'DATA_FTTH',  int(data_ftth), str(datetime.now().strftime("%Y%m"))))
+            if ind is not None:
+                dane.append((dzis, 'PLK', 'IND',        int(ind),        str(datetime.now().strftime("%Y%m"))))
+            if mix is not None:
+                dane.append((dzis, 'PLK', 'MIX',        int(mix),        str(datetime.now().strftime("%Y%m"))))
         if dane_cp is not None:
             cp_ostatni, cp_aktualny = dane_cp
             dane.append((dzis, 'CP', 'TV', int(cp_aktualny['TV']), str(cp_aktualny['Msc'])))
@@ -223,26 +237,34 @@ def zapisz_do_bazy(conn, dane_plk, dane_cp, dane_netia):
         if len(dane) == 0:
             print("Brak danych do zapisania!")
             return
-        current_month = datetime.now().strftime('%Y%m')
-        query_check = f"SELECT COUNT(*) FROM db_work_dwn.Churn_Daily WHERE MIESIAC = '{current_month}'"
-        cursor.execute(query_check)
-        count_records = cursor.fetchone()[0]
+        
+        inserted = 0
+        updated = 0
+        for row in dane:
+            data_raportu, spolka, produkt, wartosc, miesiac = row
+            query_check = f"""
+                    SELECT COUNT(*) FROM db_work_dwn.Churn_Daily 
+                    WHERE SPOLKA = '{spolka}' 
+                    AND PRODUKT = '{produkt}' 
+                    AND MIESIAC = '{miesiac}'
+                """
+            cursor.execute(query_check)
+            exists = cursor.fetchone()[0]
 
-        if count_records == 0:
-            insert_sql = "INSERT INTO db_work_dwn.Churn_Daily VALUES (?,?,?,?,?)"
-            cursor.executemany(insert_sql, dane)
-            print(f"\nWrzucono {len(dane)} wierszy do Churn_Daily!")
-        else:
-            dane_update = [(wartosc, data_raportu, spolka, produkt, miesiac) 
-                for (data_raportu, spolka, produkt, wartosc, miesiac) in dane]
-            update_sql = """UPDATE db_work_dwn.Churn_Daily 
-                            SET WARTOSC = ?, DATA_RAPORTU = ?
-                            WHERE SPOLKA = ?
-                            AND PRODUKT = ?
-                            AND MIESIAC = ?
-                            """
-            cursor.executemany(update_sql, dane_update)
-            print(f"\nZaktualizowano {len(dane_update)} wierszy!")
+            if exists == 0:
+                insert_sql = "INSERT INTO db_work_dwn.Churn_Daily VALUES (?,?,?,?,?)"
+                cursor.execute(insert_sql, row)
+                inserted += 1
+            else:
+                update_sql = """UPDATE db_work_dwn.Churn_Daily 
+                                SET WARTOSC = ?, DATA_RAPORTU = ?
+                                WHERE SPOLKA = ?
+                                AND PRODUKT = ?
+                                AND MIESIAC = ?
+                                """
+                cursor.execute(update_sql, (wartosc, data_raportu, spolka, produkt, miesiac))
+                updated += 1
+        print(f"\nWstawiono: {inserted}, Zaktualizowano: {updated}")
     except Exception as e:
         print(f"Błąd: {e}")
         return None
