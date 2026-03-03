@@ -19,14 +19,33 @@ Automated daily churn data collection and reporting system for telecommunication
 ```
 churn-daily-automation/
 ├── backend/
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── main.py              # FastAPI application
+│   │   ├── database.py          # Database connection
+│   │   └── models.py            # Pydantic models
 │   ├── scripts/
-│   │   └── churn_daily.py          # Main automation script
-│   ├── api/                         # FastAPI (coming soon)
-│   └── requirements.txt             # Python dependencies
+│   │   ├── __init__.py
+│   │   └── churn_daily.py       # Main automation script
+│   └── requirements.txt         # Python dependencies
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Dashboard.jsx    # Main dashboard
+│   │   │   ├── ChurnTable.jsx   # Data table
+│   │   │   └── UpdateButtons.jsx # Manual update controls
+│   │   ├── App.js
+│   │   └── index.js
+│   └── package.json
 ├── automation/
-│   └── uruchom_churn.bat           # Task Scheduler launcher
+│   ├── uruchom_churn.bat        # Task Scheduler (daily automation)
+│   └── uruchom_serwer.bat       # Start both servers (dev)
 ├── docs/
-│   └── project-plan.md             # Detailed project plan
+│   ├── summary/
+│   │   ├── summary-2026-03-02.md
+│   │   └── summary-2026-03-03.md
+│   └── project-plan.md
 ├── .gitignore
 └── README.md
 ```
