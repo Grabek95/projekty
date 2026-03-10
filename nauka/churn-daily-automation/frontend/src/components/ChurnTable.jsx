@@ -18,7 +18,7 @@ function ChurnTable({ data }) {
                         <th style={{ padding: '10px', border: '1px solid #ddd' }}>Spółka</th>
                         <th style={{ padding: '10px', border: '1px solid #ddd' }}>Produkt</th>
                         <th style={{ padding: '10px', border: '1px solid #ddd' }}>Wartość</th>
-                        <th style={{ padding: '10px', border: '1px solid #ddd' }}>Miesiąc</th>
+                        <th style={{ padding: '10px', border: '1px solid #ddd' }}>Rok Miesiac</th>
                     </tr>
                 </thead>
                 <tbody>

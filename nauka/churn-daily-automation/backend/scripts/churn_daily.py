@@ -36,15 +36,17 @@ def outlook_connect():
 
 def Teradata_connect():
     try:
-        if os.getlogin() == 'mateusz.grabinski':
-            hasla = pd.read_excel(r'C:\Users\mateusz.grabinski\Desktop\Pass.xlsx')         
-            start = 0
-            koniec = hasla.index.max()
-            while start <= koniec:
-                pas = hasla.loc[start, 'Co']
-                globals()[pas] = hasla.loc[start, 'wartosc']
-                start = start + 1
-            del pas, start, koniec, hasla
+        script_dir = os.path.dirname(__file__)
+        credentials_path = os.path.join(script_dir, '..', 'credentials', 'Pass.xlsx')
+
+        hasla = pd.read_excel(credentials_path)        
+        start = 0
+        koniec = hasla.index.max()
+        while start <= koniec:
+            pas = hasla.loc[start, 'Co']
+            globals()[pas] = hasla.loc[start, 'wartosc']
+            start = start + 1
+        del pas, start, koniec, hasla
         conn = pyodbc.connect('DRIVER={Teradata Database ODBC Driver 16.20};DBCNAME={dbc};UID=' + teralog + ';PWD=' + terapas + ';QUIETMODE=YES;')
         conn.autocommit = True
         return conn
@@ -145,7 +147,7 @@ def pobierz_cp(conn):
 
 def pobierz_netia():
     try:
-        # Filtra dla Netia
+        # Filtr dla Netia
         temat_netia = f"CHURN WINDYKACYJNY NETIA - WYKONANIE: {dzis}"
         filtr_netia = f"[Subject] = '{temat_netia}'"
         maile_netia = inbox.Items.Restrict(filtr_netia)
@@ -153,49 +155,89 @@ def pobierz_netia():
         if len(maile_netia) == 0:
             print("Brak maila!")
             return None
+        
         mail_netia = maile_netia[0]
         html_content_netia = mail_netia.HTMLBody
         tabele_netia = pd.read_html(html_content_netia)
-        # Bierzemy pierwszą tabelę
         df_netia = tabele_netia[0]
-        # Szukamy kolumny z datą (format YYYY-MM-DD w poziomie 0)
+        
+        # Szukamy kolumn z datą
         kolumny_dat = [col for col in df_netia.columns 
             if col[0] not in ['OKRES', 'TOTAL'] and '-' in str(col[0])]
-        # Bierzemy pierwszą (lub najnowszą) datę
+        
         if len(kolumny_dat) == 0:
             print("Nie znaleziono kolumny z datą!")
-            return None       
-        kolumna_z_data_biezacy = kolumny_dat[-1]  # Ostatnia = najnowsza data  
-        kolumna_z_data_poprzedni = kolumny_dat[-2] if len(kolumny_dat) > 1 else None  # Przedostatnia     
-        # Kolumna z nazwami produktów
+            return None
+        
+        # Sprawdź czy ostatnia kolumna to bieżący miesiąc
+        ostatnia_kolumna = kolumny_dat[-1]
+        data_ostatniej = ostatnia_kolumna[0]  # np. "2026-02-01"
+        current_month = datetime.now().strftime("%Y-%m")  # np. "2026-03"
+        
         kolumna_produkt = ('OKRES', 'PRODUKT')
-        # Usuwamy wiersz TOTAL
         df_netia_clean = df_netia[df_netia[kolumna_produkt] != 'TOTAL'].copy()
-        # Wyciągamy wartości dla każdego produktu
-        bb_offnet = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'BB OFFNET', kolumna_z_data_biezacy].values[0]
-        bb_onnet = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'BB ONNET', kolumna_z_data_biezacy].values[0]
-        mobile = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'MOBILE', kolumna_z_data_biezacy].values[0]
-        tv = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'TV', kolumna_z_data_biezacy].values[0]
-        voice_offnet = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'VOICE OFFNET', kolumna_z_data_biezacy].values[0]
-        voice_onnet = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'VOICE ONNET', kolumna_z_data_biezacy].values[0]
-        if kolumna_z_data_poprzedni is not None:
+        
+        if data_ostatniej.startswith(current_month):
+            # Ostatnia kolumna = bieżący miesiąc
+            print(f"DEBUG: Ostatnia kolumna ({data_ostatniej}) = bieżący miesiąc")
+            kolumna_z_data_biezacy = kolumny_dat[-1]
+            kolumna_z_data_poprzedni = kolumny_dat[-2] if len(kolumny_dat) > 1 else None
+            
+            # Pobierz dane bieżące
+            bb_offnet = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'BB OFFNET', kolumna_z_data_biezacy].values[0]
+            bb_onnet = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'BB ONNET', kolumna_z_data_biezacy].values[0]
+            mobile = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'MOBILE', kolumna_z_data_biezacy].values[0]
+            tv = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'TV', kolumna_z_data_biezacy].values[0]
+            voice_offnet = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'VOICE OFFNET', kolumna_z_data_biezacy].values[0]
+            voice_onnet = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'VOICE ONNET', kolumna_z_data_biezacy].values[0]
+            
+            # Pobierz dane poprzednie
+            if kolumna_z_data_poprzedni is not None:
+                bb_offnet_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'BB OFFNET', kolumna_z_data_poprzedni].values[0]
+                bb_onnet_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'BB ONNET', kolumna_z_data_poprzedni].values[0]
+                mobile_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'MOBILE', kolumna_z_data_poprzedni].values[0]
+                tv_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'TV', kolumna_z_data_poprzedni].values[0]
+                voice_offnet_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'VOICE OFFNET', kolumna_z_data_poprzedni].values[0]
+                voice_onnet_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'VOICE ONNET', kolumna_z_data_poprzedni].values[0]
+            else:
+                bb_offnet_last = bb_onnet_last = mobile_last = tv_last = voice_offnet_last = voice_onnet_last = None
+            
+            print("\n--- Wartości CHURN NETIA ---")
+            print(f"Data (bieżący): {kolumna_z_data_biezacy[0]}")
+            print(f"BB OFFNET: {bb_offnet}")
+            print(f"BB ONNET: {bb_onnet}")
+            print(f"MOBILE: {mobile}")
+            print(f"TV: {tv}")
+            print(f"VOICE OFFNET: {voice_offnet}")
+            print(f"VOICE ONNET: {voice_onnet}")
+            
+            return (bb_offnet, bb_onnet, mobile, tv, voice_offnet, voice_onnet), (bb_offnet_last, bb_onnet_last, mobile_last, tv_last, voice_offnet_last, voice_onnet_last), kolumna_z_data_biezacy, kolumna_z_data_poprzedni
+        
+        else:
+            # Ostatnia kolumna = poprzedni miesiąc (bieżącego jeszcze nie ma)
+            print(f"DEBUG: Ostatnia kolumna ({data_ostatniej}) = poprzedni miesiąc")
+            kolumna_z_data_biezacy = None
+            kolumna_z_data_poprzedni = kolumny_dat[-1]
+            
+            # Pobierz dane tylko z ostatniej (poprzedniej) kolumny
             bb_offnet_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'BB OFFNET', kolumna_z_data_poprzedni].values[0]
             bb_onnet_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'BB ONNET', kolumna_z_data_poprzedni].values[0]
             mobile_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'MOBILE', kolumna_z_data_poprzedni].values[0]
             tv_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'TV', kolumna_z_data_poprzedni].values[0]
             voice_offnet_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'VOICE OFFNET', kolumna_z_data_poprzedni].values[0]
             voice_onnet_last = df_netia_clean.loc[df_netia_clean[kolumna_produkt] == 'VOICE ONNET', kolumna_z_data_poprzedni].values[0]
-
-        print("\n--- Wartości CHURN NETIA ---")
-        print(f"Data: {kolumna_z_data_biezacy[0]}")
-        print(f"BB OFFNET: {bb_offnet}")
-        print(f"BB ONNET: {bb_onnet}")
-        print(f"MOBILE: {mobile}")
-        print(f"TV: {tv}")
-        print(f"VOICE OFFNET: {voice_offnet}")
-        print(f"VOICE ONNET: {voice_onnet}")
-
-        return (bb_offnet, bb_onnet, mobile, tv, voice_offnet, voice_onnet), (bb_offnet_last, bb_onnet_last, mobile_last, tv_last, voice_offnet_last, voice_onnet_last), kolumna_z_data_biezacy, kolumna_z_data_poprzedni
+            
+            print("\n--- Wartości CHURN NETIA ---")
+            print(f"Data (poprzedni): {kolumna_z_data_poprzedni[0]}")
+            print(f"BB OFFNET: {bb_offnet_last}")
+            print(f"BB ONNET: {bb_onnet_last}")
+            print(f"MOBILE: {mobile_last}")
+            print(f"TV: {tv_last}")
+            print(f"VOICE OFFNET: {voice_offnet_last}")
+            print(f"VOICE ONNET: {voice_onnet_last}")
+            
+            return None, (bb_offnet_last, bb_onnet_last, mobile_last, tv_last, voice_offnet_last, voice_onnet_last), None, kolumna_z_data_poprzedni
+            
     except Exception as e:
         print(f"Błąd: {e}")
         return None
@@ -281,12 +323,20 @@ def update_last_cp(conn, dane_cp):
             return
         cp_ostatni, cp_aktualny = dane_cp
 
+        # Oblicz ostatni dzień miesiąca dla poprzedniego
+        from calendar import monthrange
+        miesiac_cp = str(cp_ostatni['Msc'])
+        rok = int(miesiac_cp[:4])
+        miesiac_nr = int(miesiac_cp[4:6])
+        ostatni_dzien = monthrange(rok, miesiac_nr)[1]
+        data_raportu_cp = f"{rok}-{miesiac_nr:02d}-{ostatni_dzien:02d}"
+
         dane_update = [
-            (int(cp_ostatni['TV']), 'CP', 'TV', str(cp_ostatni['Msc'])),
-            (int(cp_ostatni['IN']), 'CP', 'IN', str(cp_ostatni['Msc']))
+            (int(cp_ostatni['TV']), data_raportu_cp, 'CP', 'TV', miesiac_cp),
+            (int(cp_ostatni['IN']), data_raportu_cp, 'CP', 'IN', miesiac_cp)
         ]
         update_sql = """UPDATE db_work_dwn.Churn_Daily 
-        SET WARTOSC = ?
+        SET WARTOSC = ?, DATA_RAPORTU = ?
         WHERE SPOLKA = ?
         AND PRODUKT = ?
         AND MIESIAC = ?
@@ -310,17 +360,28 @@ def update_last_netia(conn, dane_netia):
         dane = []
         dane_biezace, dane_poprzednie, kolumna_z_data_biezacy, kolumna_z_data_poprzedni = dane_netia
         bb_offnet_last, bb_onnet_last, mobile_last, tv_last, voice_offnet_last, voice_onnet_last = dane_poprzednie  # ← Wartości POPRZEDNIEGO miesiąca!
+        
         if kolumna_z_data_poprzedni is None:
-            return    
+            return
+            
         miesiac_netia = kolumna_z_data_poprzedni[0][:7].replace('-','')
-        dane.append((int(bb_offnet_last), 'NETIA', 'BB OFFNET', miesiac_netia))
-        dane.append((int(bb_onnet_last), 'NETIA', 'BB ONNET', miesiac_netia))
-        dane.append((int(mobile_last), 'NETIA', 'MOBILE', miesiac_netia))
-        dane.append((int(tv_last), 'NETIA', 'TV', miesiac_netia))
-        dane.append((int(voice_offnet_last), 'NETIA', 'VOICE OFFNET', miesiac_netia))
-        dane.append((int(voice_onnet_last), 'NETIA', 'VOICE ONNET', miesiac_netia))
+
+        # Oblicz ostatni dzień miesiąca
+        from calendar import monthrange
+        rok = int(miesiac_netia[:4])
+        miesiac_nr = int(miesiac_netia[4:6])
+        ostatni_dzien = monthrange(rok, miesiac_nr)[1]  # (day_of_week, num_days)
+        data_raportu_netia = f"{rok}-{miesiac_nr:02d}-{ostatni_dzien:02d}"
+
+        dane.append((int(bb_offnet_last), data_raportu_netia, 'NETIA', 'BB OFFNET', miesiac_netia))
+        dane.append((int(bb_onnet_last), data_raportu_netia, 'NETIA', 'BB ONNET', miesiac_netia))
+        dane.append((int(mobile_last), data_raportu_netia, 'NETIA', 'MOBILE', miesiac_netia))
+        dane.append((int(tv_last), data_raportu_netia, 'NETIA', 'TV', miesiac_netia))
+        dane.append((int(voice_offnet_last), data_raportu_netia, 'NETIA', 'VOICE OFFNET', miesiac_netia))
+        dane.append((int(voice_onnet_last), data_raportu_netia, 'NETIA', 'VOICE ONNET', miesiac_netia))
+                
         update_sql = """UPDATE db_work_dwn.Churn_Daily 
-        SET WARTOSC = ?
+        SET WARTOSC = ?, DATA_RAPORTU = ?
         WHERE SPOLKA = ?
         AND PRODUKT = ?
         AND MIESIAC = ?
@@ -335,8 +396,6 @@ def update_last_netia(conn, dane_netia):
             cursor.close()
         except:
             pass
-
-
 
 
 if __name__ == "__main__":

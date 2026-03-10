@@ -22,3 +22,4 @@ class PLKManualInput(BaseModel):
     data_ftth: Optional[int] = None
     ind: Optional[int] = None
     mix: Optional[int] = None
+    miesiac: str

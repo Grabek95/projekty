@@ -1,8 +1,12 @@
-# Dane wrażliwe
-Pass.xlsx
+# Credentials - NIGDY NIE COMMITOWAĆ!
+backend/credentials/
 *.xlsx
-credentials/
+*.xls
 .env
+
+# Temporary files
+backend/temp/
+*.log
 
 # Python
 __pycache__/
@@ -12,17 +16,13 @@ __pycache__/
 .Python
 env/
 venv/
-*.egg-info/
+
+# Node
+node_modules/
+npm-debug.log
+package-lock.json
 
 # IDE
 .vscode/
 .idea/
 *.swp
-*.swo
-
-# System
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log

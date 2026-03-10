@@ -43,39 +43,44 @@ function UpdateButtons() {
 
     const buttonStyle = {
         padding: '10px 20px',
-        margin: '5px',
         backgroundColor: '#28a745',
         color: 'white',
         border: 'none',
         borderRadius: '5px',
         cursor: loading ? 'not-allowed' : 'pointer',
-        opacity: loading ? 0.6 : 1
+        opacity: loading ? 0.6 : 1,
+        minWidth: '250px',
+        textAlign: 'center'
     };
 
     return (
-        <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
-            <h3>Ręczne aktualizacje</h3>
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            alignItems: 'flex-end'
+        }}>
 
-            <div style={{ marginBottom: '10px' }}>
-                <button onClick={handleUpdateCP} disabled={loading} style={buttonStyle}>
-                    Update CP (poprzedni miesiąc)
-                </button>
+            {/* Przyciski jedno pod drugim */}
+            <button onClick={handleUpdateCP} disabled={loading} style={buttonStyle}>
+                Update CP (poprzedni miesiąc)
+            </button>
 
-                <button onClick={handleUpdateNetia} disabled={loading} style={buttonStyle}>
-                    Update Netia (poprzedni miesiąc)
-                </button>
+            <button onClick={handleUpdateNetia} disabled={loading} style={buttonStyle}>
+                Update Netia (poprzedni miesiąc)
+            </button>
 
-                <button
-                    onClick={handleRefreshAll}
-                    disabled={loading}
-                    style={{ ...buttonStyle, backgroundColor: '#007bff' }}
-                >
-                    Refresh wszystkich danych
-                </button>
-            </div>
+            <button
+                onClick={handleRefreshAll}
+                disabled={loading}
+                style={{ ...buttonStyle, backgroundColor: '#007bff' }}
+            >
+                Odśwież dane
+            </button>
 
-            {loading && <p>Przetwarzanie...</p>}
-            {message && <p style={{ marginTop: '10px', fontWeight: 'bold' }}>{message}</p>}
+            {/* Status messages */}
+            {loading && <p style={{ margin: '5px 0', fontSize: '13px' }}>Przetwarzanie...</p>}
+            {message && <p style={{ margin: '5px 0', fontWeight: 'bold', fontSize: '13px' }}>{message}</p>}
         </div>
     );
 }

@@ -64,6 +64,34 @@ def get_all_churn():
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+# Kolejny ważny endpoint - pobierz wszystkie dane budżetu churn  
+@app.get("/api/budget/all")
+def get_all_budget():
+    """Pobierz wszystkie dane budżetu z tabeli Churn_Daily_BU"""
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            raise HTTPException(status_code=500, detail="Database connection failed")
+        
+        query = """
+            SELECT ROK_MSC, SPOLKA, PRODUKT, WARTOSC
+            FROM db_work_dwn.Churn_Daily_BU
+            ORDER BY ROK_MSC, SPOLKA, PRODUKT
+        """
+        
+        df = pd.read_sql(query, conn)
+        conn.close()
+        
+        records = df.to_dict('records')
+        
+        return {
+            "count": len(records),
+            "records": records
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
     
 # Refresh wszystkich danych - tak jak Task Scheduler
 @app.post("/api/churn_refresh/all")
@@ -177,6 +205,68 @@ def update_netia_previous_month():
 
 @app.post("/api/plk/manual")
 def manual_plk_input(data: PLKManualInput):
-    """Ręczne wpisanie wartości PLK - TODO"""
-    # TODO: Implementacja później
-    return {"message": "Not implemented yet"}
+    """
+    Ręczna aktualizacja wartości PLK dla wybranego miesiąca
+    (tylko UPDATE istniejących danych)
+    """
+    try:
+        from datetime import datetime
+        from calendar import monthrange
+
+        rok = int(data.miesiac[:4])
+        miesiac_nr = int(data.miesiac[4:6])
+        ostatni_dzien = monthrange(rok, miesiac_nr)[1]
+        data_raportu_plk = f"{rok}-{miesiac_nr:02d}-{ostatni_dzien:02d}"
+        
+        conn = get_db_connection()
+        if conn is None:
+            raise HTTPException(status_code=500, detail="Database connection failed")
+        
+        cursor = conn.cursor()
+        dzis = datetime.now().strftime("%Y-%m-%d")
+        
+        # Przygotuj dane do aktualizacji
+        produkty = []
+        if data.biz is not None:
+            produkty.append(('BIZ', data.biz))
+        if data.data is not None:
+            produkty.append(('DATA', data.data))
+        if data.data_ftth is not None:
+            produkty.append(('DATA_FTTH', data.data_ftth))
+        if data.ind is not None:
+            produkty.append(('IND', data.ind))
+        if data.mix is not None:
+            produkty.append(('MIX', data.mix))
+        
+        updated = 0
+        
+        # UPDATE dla każdego produktu
+        for produkt_nazwa, wartosc in produkty:
+            update_sql = """
+                UPDATE db_work_dwn.Churn_Daily 
+                SET WARTOSC = ?, DATA_RAPORTU = ?
+                WHERE SPOLKA = 'PLK' 
+                AND PRODUKT = ? 
+                AND MIESIAC = ?
+            """
+            cursor.execute(update_sql, (int(wartosc), data_raportu_plk, produkt_nazwa, data.miesiac))
+            updated += cursor.rowcount  # Ile wierszy faktycznie zaktualizowano
+        
+        cursor.close()
+        conn.close()
+        
+        if updated == 0:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"No PLK data found for month {data.miesiac}. Please use automation to create initial data first."
+            )
+        
+        return {
+            "message": f"PLK data updated successfully! Updated {updated} products.",
+            "miesiac": data.miesiac
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
