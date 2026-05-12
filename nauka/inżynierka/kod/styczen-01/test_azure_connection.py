@@ -1,16 +1,16 @@
 # test_azure_connection.py
-# Pierwszy skrypt łączący się z Azure SQL Database
+# pierwszy skrypt laczacy sie z Azure SQL Database
 
 import pyodbc
 import pandas as pd
 
-# KONFIGURACJA POŁĄCZENIA
+# konfiguracja polaczenia
 server = 'sql-praca-mateusz.database.windows.net'
 database = 'db-praca-inzynierska'
-username = 'sqladmin' 
-password = 'haslo' # wpisać właściwe hasło
+username = 'sqladmin'
+password = 'YOUR_PASSWORD'
 
-# Connection string
+# connection string
 conn_str = (
     f'Driver={{ODBC Driver 18 for SQL Server}};'
     f'Server=tcp:{server},1433;'
@@ -22,32 +22,32 @@ conn_str = (
     f'Connection Timeout=30;'
 )
 
-print("Łącze się z Azure SQL Database...")
+print("Connecting to Azure SQL Database...")
 
 try:
-    # Połączenie
+    # polaczenie
     conn = pyodbc.connect(conn_str)
-    print("Połączono!")
+    print("Connected!")
 
-    # Zapytanie SQL
+    # sql
     query = "SELECT * FROM TestSprzedaz"
 
-    # Wczytaj pandas dataframe
+    # wczytaj do pandas dataframe
     df = pd.read_sql(query, conn)
 
-    print("\n Dane z tabeli TestSprzedaz:")
+    print("\nData from TestSprzedaz:")
     print(df)
 
-    print("\nStatystyki:")
-    print(f" Liczba rekordów: {len(df)}")
+    print("\nStatistics:")
+    print(f"  Total records: {len(df)}")
     suma = (df['ilosc'] * df['cena']).sum()
-    print(f"   Suma wartości sprzedaży: {suma:.2f} PLN")
+    print(f"  Total sales value: {suma:.2f} PLN")
 
-    # Zamknij połączenie
+    # zamknij polaczenie
     conn.close()
-    print("\n Połączenie zamknięte!")
+    print("\nConnection closed!")
 
 except Exception as e:
-    print(f"\n Błąd: {e}")
+    print(f"\nError: {e}")
 
-input("\n Naciśnij Enter aby zakończyć...")
+input("\nPress Enter to exit...")

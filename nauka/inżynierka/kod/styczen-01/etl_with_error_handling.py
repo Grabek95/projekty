@@ -1,5 +1,5 @@
 # etl_with_error_handling.py
-# etl z obsługą błędów
+# etl z obsluga bledow
 
 import pyodbc
 import sys
@@ -8,10 +8,10 @@ from datetime import datetime
 # konfiguracja
 server = 'sql-praca-mateusz.database.windows.net'
 database = 'db-praca-inzynierska'
-username = 'sqladmin' 
-password = 'haslo' # wpisać właściwe hasło
+username = 'sqladmin'
+password = 'YOUR_PASSWORD'
 
-# Connection string
+# connection string
 conn_str = (
     f'Driver={{ODBC Driver 18 for SQL Server}};'
     f'Server=tcp:{server},1433;'
@@ -23,20 +23,20 @@ conn_str = (
     f'Connection Timeout=30;'
 )
 
-print("ETL z obsługa błędów")
+print("ETL with error handling")
 
-# inicjowanie zmiennych
+# inicjalizacja zmiennych
 conn = None
 cursor = None
 
 try:
-    print ("\nPróba połączenia z Azure SQL Database...")
+    print("\nAttempting connection to Azure SQL...")
     conn = pyodbc.connect(conn_str)
     cursor = conn.cursor()
-    print("Połączono!")
+    print("Connected!")
 
-    # operacja 1 - insert z walidacją
-    print("\nINSERT z walidacją")
+    # operacja 1: insert z walidacja
+    print("\nINSERT with validation:")
 
     produkt = 'Tablet'
     ilosc = 3
@@ -44,56 +44,56 @@ try:
 
     # walidacja danych
     if ilosc <= 0:
-        raise ValueError("Ilość musi być większa niż 0!")
-    
+        raise ValueError("Quantity must be greater than 0!")
+
     if cena <= 0:
-        raise ValueError("Cena musi być większa niż 0!")
-    
+        raise ValueError("Price must be greater than 0!")
+
     # insert
     query = "INSERT INTO TestSprzedaz (produkt, ilosc, cena) VALUES (?, ?, ?)"
     cursor.execute(query, produkt, ilosc, cena)
     conn.commit()
 
-    print(f"Dodano: {produkt}, ilość: {ilosc}, cena: {cena}")
+    print(f"Added: {produkt}, quantity: {ilosc}, price: {cena}")
 
-    # operacja 2 - UPDATE z walidacją czy rekord istnieje
-    print("\nUPDATE z walidacją")
+    # operacja 2: update z walidacja
+    print("\nUPDATE with validation:")
 
     produkt_do_zmiany = "Monitor"
     nowa_cena = 1099.99
 
-    # sprawdz czy produkt istnieje
+    # sprawdz czy istnieje
     cursor.execute("SELECT COUNT(*) FROM TestSprzedaz WHERE produkt = ?", produkt_do_zmiany)
     count = cursor.fetchone()[0]
 
     if count == 0:
-        print(f"Produkt '{produkt_do_zmiany}' nie istnieje - pomijam UPDATE")
+        print(f"Product '{produkt_do_zmiany}' does not exist - skipping UPDATE")
     else:
-        cursor.execute("UPDATE TestSprzedaz SET cena = ?, produkt = ?", nowa_cena, produkt_do_zmiany)
+        cursor.execute("UPDATE TestSprzedaz SET cena = ? WHERE produkt = ?", nowa_cena, produkt_do_zmiany)
         conn.commit()
-        print(f"Zaktualizowano produkt {produkt_do_zmiany} o nową cenę: {nowa_cena}")
+        print(f"Updated {produkt_do_zmiany} with new price: {nowa_cena}")
 
-    # delete z potwierdzeniem
-    print("\nDELETE z potwierdzeniem")
+    # operacja 3: delete z potwierdzeniem
+    print("\nDELETE with confirmation:")
 
-    produkt_do_usuniecia = "XYZ" # produkt który nie istnieje
+    produkt_do_usuniecia = "XYZ"  # nie istnieje
 
     cursor.execute("SELECT COUNT(*) FROM TestSprzedaz WHERE produkt = ?", produkt_do_usuniecia)
     count = cursor.fetchone()[0]
 
     if count == 0:
-        print(f"Produkt {produkt_do_usuniecia} nie istnieje - nie można usunąć")
+        print(f"Product '{produkt_do_usuniecia}' does not exist - cannot delete")
     else:
         cursor.execute("DELETE FROM TestSprzedaz WHERE produkt = ?", produkt_do_usuniecia)
         conn.commit()
-        print(f"Usunięto: {produkt_do_usuniecia}")
+        print(f"Deleted: {produkt_do_usuniecia}")
 
-    # weryfikacja końcowa
-    print("\nWeryfikacja końcowa - wszystkie rekordy")
+    # weryfikacja koncowa
+    print("\nFinal verification - all records:")
 
     cursor.execute("SELECT COUNT(*) FROM TestSprzedaz")
     total_count = cursor.fetchone()[0]
-    print(f"\nŁączna liczba rekordów: {total_count}")
+    print(f"\nTotal records: {total_count}")
 
     cursor.execute("""
         SELECT id, produkt, ilosc, cena
@@ -103,53 +103,52 @@ try:
 
     rows = cursor.fetchall()
 
-    print("\nID | Produkt      | Ilość | Cena")
+    print("\nID | Product      | Qty   | Price")
     print("=" * 50)
-    for row in rows[:5]: # pokaż tylkko 5 ostatnich
+    for row in rows[:5]:  # pokaz 5 ostatnich
         print(f"{row.id:2} | {row.produkt:12} | {row.ilosc:5} | {row.cena:7.2f}")
 
-    print("\nWszystkie operacje zakończone pomyślnie!")
+    print("\nAll operations completed successfully!")
 
-except pyodbc.Error as db_error: # błędy bazy danych
-    print(f"\nBłąd bazy danych!")
-    print(f"    Typ błędu: {type(db_error).__name__}")
-    print(f"    Szczegóły: {db_error}")
+except pyodbc.Error as db_error:
+    print(f"\nDatabase error!")
+    print(f"  Type: {type(db_error).__name__}")
+    print(f"  Details: {db_error}")
 
-    # rollback jeśli połączenie istnieje
     if conn:
         conn.rollback()
-        print("Wykonano rollback - cofnięto niezatwierdzone zmiany")
+        print("Rollback executed - reverted uncommitted changes")
 
-    sys.exit(1) # zakończ program z kodem błędu
+    sys.exit(1)
 
 except ValueError as val_error:
-    # błędy walidacji danych
-    print(f"\nBłąd walidacji danych!")
-    print(f"    Szczegóły: {val_error}")
+    print(f"\nValidation error!")
+    print(f"  Details: {val_error}")
     sys.exit(1)
 
 except Exception as general_error:
-    # inne oczekiwane błędy
-    print(f"\nNieoczekiwany błąd!")
-    print(f"    Typ: {type(general_error).__name__}")
-    print(f"    Szczegóły: {general_error}")
+    print(f"\nUnexpected error!")
+    print(f"  Type: {type(general_error).__name__}")
+    print(f"  Details: {general_error}")
 
     if conn:
         conn.rollback()
-        print("Wykonano rollback!")
+        print("Rollback executed!")
+
+    sys.exit(1)
 
 finally:
-    # ten blok zawsze się wykona niezależnie od wyniku - sukces lub błąd
-    print("\nSprzątanie zasobów")
+    # zawsze wykonany - cleanup
+    print("\nCleaning up resources...")
 
     if cursor:
         cursor.close()
-        print("Cursor zamknięty")
+        print("Cursor closed")
 
     if conn:
         conn.close()
-        print("Połączenie zamknięte")
+        print("Connection closed")
 
-    print(f"\nZakończono: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"\nCompleted: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    input("\nNaciśnij Enter aby zakończyć...")
+input("\nPress Enter to exit...")

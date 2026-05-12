@@ -12,31 +12,28 @@ import os
 
 app = func.FunctionApp()
 
-# KONFIGURACJA - (z environment variables)
+# konfiguracja z azure env variables
 BLOB_CONNECTION = os.environ.get("AzureWebJobsStorage")
-# AzureWebJobsStorage = domyślna zmienna w Functions
-# Automatycznie ustawiona gdy deploy Azure
+# AzureWebJobsStorage jest ustawione domyslnie przez azure
 
 SQL_SERVER = os.environ.get("SQL_SERVER")
 SQL_DB = os.environ.get("SQL_DB")
 SQL_USER = os.environ.get("SQL_USER")
 SQL_PASS = os.environ.get("SQL_PASS")
 
-# TIME TRIGGER
+# timer - autoamtyczne wykonanie
 @app.timer_trigger(
         schedule="0 0 9 * * *", # codziennie o 9:00 UTC
         arg_name="myTimer",
-        run_on_startup=False,   # nie uruchamiaj przy starcie (tylko dla testów)
+        run_on_startup=False, 
         use_monitor=False
         )
 def TimerPipeline(myTimer: func.TimerRequest) -> None:
     """
-    Timer Trigger - Uruchamia pipeline automatycznie.
-    
-    CRON: 0 0 9 * * * = Codziennie o 9:00 UTC
-    Zmień na: 0 */30 * * * * = Co 30 minut
+    Automatyczne uruchomienie pipeline o 9:00 UTC codziennie.
+    Schedule można zmienić w parametrze 'schedule
     """
-    logging.info('Timer Trigger - Pipeline START')
+    logging.info('Timer Trigger - Pipeline start')
 
     if myTimer.past_due:
         logging.info('The timer is past due!')
@@ -48,23 +45,19 @@ def TimerPipeline(myTimer: func.TimerRequest) -> None:
     
     except Exception as e:
         logging.error(f'Pipeline FALSED: {str(e)}')
-        raise # Re-reaise żeby Azure wiedziało, że failed
+        raise # rzuc error dalej do azure
 
-# HTTP TRIGGER - Uruchamia się na żądanie
+# http trigger, uruchamiany na żądanie
 @app.route(route="pipeline", auth_level=func.AuthLevel.ANONYMOUS)
 def HttpPipeline(req: func.HttpRequest) -> func.HttpResponse:
     """
     HTTP Trigger - Uruchamia pipeline przez URL.
-    
     URL: https://<function-app>.azurewebsites.net/api/pipeline
-    Metoda: GET lub POST
     """
-    logging.info('HTTP Trigger - Pipeline START')
+    logging.info('HTTP Trigger - pipeline start')
 
     try:
-        # uruchom pipeline
         result = run_pipeline()
-
         return func.HttpResponse(
             f"Pipeline SUCCESS!\n\n{result}",
             status_code=200
@@ -72,57 +65,54 @@ def HttpPipeline(req: func.HttpRequest) -> func.HttpResponse:
     
     except Exception as e:
         logging.error(f'Pipeline FAILED: {str(e)}')
-
         return func.HttpResponse(
             f"Pipeline FAILED!\n\nError: {str(e)}",
             status_code=500
         )
     
-# GŁÓWNA LOGIKA PIPELINE
+# glowna logika: pobiera csv z blob, wstawia do sql
 def run_pipeline():
     """
-    ETL Pipeline: Blob → SQL
-    
-    Returns:
-        str: Podsumowanie operacji
+    ETL Pipeline: Blob to SQL
+    Returns: podsumowanie operacji
     """
     logging.info('Pipeline execution started')
 
-    # sprawdz konfiguracje
+    # sprawdz czy wszystkie zmienne sa ustawione
     if not all([BLOB_CONNECTION, SQL_SERVER, SQL_DB, SQL_USER, SQL_PASS]):
         raise ValueError("Missing configuration! Check environment variables.")
     
-    # KROK 1: Połącz z Blob Storage
-    logging.info('Step 1: Connecting to Blob Storage')
+    # polacz z blob storage
+    logging.info('Connecting to Blob Storage')
     blob_service = BlobServiceClient.from_connection_string(BLOB_CONNECTION)
     container = blob_service.get_container_client("raw")
 
-    # Lista plików
+    # lista plikow w raw
     blobs = list(container.list_blobs())
     if not blobs:
         return "No files in 'raw' container. Nothing to process."
     
     logging.info(f'Found {len(blobs)} files in raw container')
 
-    # weź najnowszy plik
+    # wez najnowszy plik
     latest_blob = sorted(blobs, key=lambda b: b.last_modified, reverse=True)[0]
     blob_name = latest_blob.name
     logging.info(f'Processing: {blob_name}')
 
-    # KROK 2: Pobierz i parsuj CSV
-    logging.info('Step 2: Downloading and parsing CSV')
+    # pobierz i parsuj csv
+    logging.info('Downloading and parsing CSV')
     blob_client = container.get_blob_client(blob_name)
     download_stream = blob_client.download_blob()
-    csv_content = download_stream.readall().decode('utf-8-sig')
+    csv_content = download_stream.readall().decode('utf-8-sig') # utf-8-sig dla polskich znakow
 
     csv_reader = csv.DictReader(io.StringIO(csv_content))
     rows = list(csv_reader)
     logging.info(f'Parsed {len(rows)} rows')
 
-    # KROK 3: INSERT do SQL
-    logging.info('Step 3: Inserting to SQL Database')
+    # insert do sql
+    logging.info('Inserting to SQL Database')
 
-    # Połącz przez pymssql (bez ODBC Driver)
+    # polacz przez pymssql
     conn = pymssql.connect(
         server=SQL_SERVER,
         user=SQL_USER,
@@ -133,7 +123,7 @@ def run_pipeline():
     try:
         cursor = conn.cursor()
 
-        # sprawdź ile jest przed
+        # sprawdz ile jest przed
         cursor.execute("SELECT COUNT(*) FROM TestSprzedaz")
         count_before = cursor.fetchone()[0]
 
@@ -152,7 +142,7 @@ def run_pipeline():
         )
         conn.commit()
 
-        # sprawdź ile jest po
+        # sprawdz ile jest po
         cursor.execute("SELECT COUNT(*) FROM TestSprzedaz")
         count_after = cursor.fetchone()[0]
 
@@ -162,17 +152,26 @@ def run_pipeline():
     finally:
         conn.close()
 
-    # KROK 4: Kopiuj do processed
-    logging.info('Step 4: Copying to processed container')
+    # kopiuje do processed
+    logging.info('Copying to processed container')
     processed_container = blob_service.get_container_client("processed")
     dest_blob = processed_container.get_blob_client(blob_name)
     dest_blob.start_copy_from_url(blob_client.url)
     logging.info('Copied to processed')
 
-    # PODSUMOWANIE
+    # po skopiowaniu, przenosi do archive
+    logging.info('Moving to archive container')
+    archive_container = blob_service.get_container_client("archive")
+    archive_blob = archive_container.get_blob_client(blob_name)
+    archive_blob.start_copy_from_url(blob_client.url)
+
+    # usuwam z raw
+    blob_client.delete_blob()
+    logging.info('Deleted from raw container')
+
+    # pdsumowanie
     summary = f"""
 Pipeline Execution Summary:
-===========================
 File: {blob_name}
 Rows processed: {len(rows)}
 Records inserted: {inserted}

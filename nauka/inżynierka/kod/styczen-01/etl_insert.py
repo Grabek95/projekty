@@ -1,16 +1,17 @@
-# etl_isnert.py
+# etl_insert.py
 # insert nowych rekordow do Azure SQL Database
+# skrypt testowy - testy lokalne
 
 import pyodbc
 from datetime import datetime
 
-# konfiguracja
+# konfiguracja polaczenia
 server = 'sql-praca-mateusz.database.windows.net'
 database = 'db-praca-inzynierska'
 username = 'sqladmin' 
-password = 'YOUR_PASSWORD' # wpisać właściwe hasło
+password = 'YOUR_PASSWORD' # tylko dla testow lokalnych
 
-# Connection string
+# conn string (pyodbc - wymaga ODBC driver 18)
 conn_str = (
     f'Driver={{ODBC Driver 18 for SQL Server}};'
     f'Server=tcp:{server},1433;'
@@ -22,35 +23,35 @@ conn_str = (
     f'Connection Timeout=30;'
 )
 
-print("INSERT - dodawanie nowych rekordów")
+print("INSERT - adding new records to the database")
 
 try: 
-    # połączenie
-    print ("\n Łącze się z Azure SQL Database...")
+    # polaczenie
+    print ("\nConnecting to Azure SQL Database...")
     conn = pyodbc.connect(conn_str)
     cursor = conn.cursor()
-    print("Połączono!")
+    print("Connected!")
 
-    # metoda 1 - insert pojedynczego rekordu
-    print("\n Pojedynczy INSERT")
+    # insert pojedynczego rekordu
+    print("\nSingle INSERT")
 
     query = """
         INSERT INTO TestSprzedaz (produkt, ilosc, cena)
         VALUES (?, ?, ?)
     """
-    # DANE
+    # dane
     produkt = 'Tablet'
     ilosc = 2
     cena = 1499.49
 
     cursor.execute(query, produkt, ilosc, cena)
-    conn.commit() # potrzebne do zapisywania danych
+    conn.commit() 
 
-    print(f"Dodano: {produkt}, ilość: {ilosc}, cena: {cena}")
+    print(f"Added: {produkt}, ilość: {ilosc}, cena: {cena}")
 
 
-    # metoda 2 - insert wielu rekordów (lista)
-    print("\n Multiple INSERT")
+    # insert wielu rekordow
+    print("\nBulk INSERT:")
 
     nowe_produkty = [
         ('Drukarka', 1, 599.99),
@@ -62,10 +63,10 @@ try:
     cursor.executemany(query, nowe_produkty)
     conn.commit()
 
-    print(f"Dodano {len(nowe_produkty)} produktów!")
+    print(f"Added {len(nowe_produkty)} products!")
 
-    # weryfikacja - sprawdzenie co zostało dodane
-    print("\n Weryfikacja ostatnich 5 rekordów")
+    # weryfikacja
+    print("\n Verification - last 5 records")
 
     cursor.execute("""
         SELECT TOP 5 * FROM TestSprzedaz 
@@ -74,20 +75,20 @@ try:
 
     rows = cursor.fetchall()
 
-    print("\nID | Produkt      | Ilość | Cena    | Data")
+    print("\nID | Product      | Quantity | Price    | Date")
     print("-" * 60)
     for row in rows:
         print(f"{row.id:2} | {row.produkt:12} | {row.ilosc:5} | {row.cena:7.2f} | {row.data_sprzedazy}")
 
-    # zamknij połączenie
+    # zamknij polaczenie
     cursor.close()
     conn.close()
-    print("\nPołączenie zamknięte!")
+    print("\nConnection closed!")
 
 except pyodbc.Error as e:
-    print(f"\n Błąd bazy danych: {e}")
+    print(f"\nDatabase error: {e}")
 
 except Exception as e:
-    print(f"\n Błąd: {e}")
+    print(f"\nError: {e}")
 
-input("\nNaciśnij Enter aby zakończyć...")
+input("\Press Enter to exit...")

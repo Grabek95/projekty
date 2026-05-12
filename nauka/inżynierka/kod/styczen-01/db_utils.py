@@ -2,39 +2,32 @@
 # funkcje pomocnicze do pracy z Azure SQL Database
 
 import pyodbc
-from typing import List, Tuple, Optional # import type odpowiednio: Lista, Krotka, Opcjonalny
+from typing import List, Tuple, Optional
 
-class AzureSQLConnection: # utworzenie klasy = szablon do tworzenia obiektów połączeń
+class AzureSQLConnection:
     """
-    Klasa do zarządzania połączeniem z Azure SQL Database.
-    Automatycznie zamyka połączenie po użyciu (context manager).
+    Context manager dla Azure SQL Database.
+    Automatyczne zamykanie polaczenia i commit/rollback.
+    
+    Uzycie:
+        with AzureSQLConnection(server, db, user, pass) as db:
+            db.execute_query(...)
     """
 
     def __init__(self, server: str, database: str, username: str, password: str):
-        # konstruktor - uruchamia się automatycznie gdy tworzymy obiekt
-        # self = ten konkretny obiekt
-        # str = type hint (podpowiedż, że jest to string)
-        """
-        Inicjalizacja połączenia.
-
-        Args:
-            server: Nazwa serwera
-            database: Nazwa bazy danych
-            username: Login użytkownika
-            password: Hasło
-        """
-        self.server = server # zapisz serwer na tym obiekcie
+        """Inicjalizacja parametrow polaczenia"""
+        self.server = server
         self.database = database
         self.username = username
         self.password = password
-        self.conn = None # na razie połączenie nie istnieje
+        self.conn = None
         self.cursor = None
 
-    def __enter__(self): # specjalna metoda - uruchamia się gdy robimy: with ... as db:
-        """Otwórz połączenie (używane z 'with')"""
+    def __enter__(self):
+        """Otwiera polaczenie (with statement)"""
         conn_str = (
             'Driver={ODBC Driver 17 for SQL Server};'
-            f'Server=tcp:{self.server},1433;' # wstaw self.server do stringa
+            f'Server=tcp:{self.server},1433;'
             f'Database={self.database};'
             f'Uid={self.username};'
             f'Pwd={self.password};'
@@ -42,233 +35,164 @@ class AzureSQLConnection: # utworzenie klasy = szablon do tworzenia obiektów po
             'TrustServerCertificate=no;'
             'Connection Timeout=30;'
         )
-
-        self.conn = pyodbc.connect(conn_str) # otwórz połączenie i zapisz w self.conn
-        self.cursor = self.conn.cursor() # utwórz kursor do wykonywania zapytań
-        return self # zwróć self (siebie) - to będzie przypisane do 'db'
+        self.conn = pyodbc.connect(conn_str)
+        self.cursor = self.conn.cursor()
+        return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb): # specjalna metoda - uruchamia się, gdy kończy się blok with
-        # exc_type = typ błędu (jeśl był), None jeśli sukces
-        """Zamknij połączenie (używane z 'with')"""
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Zamyka polaczenie, commit lub rollback"""
         if self.cursor:
-            self.cursor.close() # jeśli kursor istnieje, zamknij go
+            self.cursor.close()
         if self.conn:
             if exc_type:
-                # jeśli błąd --> rollback czyli cofinj zmiany
                 self.conn.rollback()
             else:
-                # jeśli sukces --> commit czyli zatwierdz zmiany
                 self.conn.commit()
             self.conn.close()
     
-    def execute_query(self, query: str, params: Optional[Tuple] = None): # query: str = query to string 
-        # params to Tuple lub None, None - domyślna wartość jeśli nie podamy params
+    def execute_query(self, query: str, params: Optional[Tuple] = None):
         """
-        Wykonaj zapytanie SQL.
-
-        Args:
-            query: Zapytanie SQL
-            params: Parametry zapytania (opcjonalnie)
-
-        Returns:
-            Liczba zmienionych wierszy
-        """
-        if params: # jeśli params podane
-            self.cursor.execute(query, params)
-        else: # jeśli params nie podane
-            self.cursor.execute(query)
-        return self.cursor.rowcount # zwróć ile wierszy zostało zmienionych
-    
-    def fetch_all(self, query: str, params: Optional[Tuple] = None): # podobnie jak execute_query
-        """
-        Wykonaj SELECT i pobierz wszystkie wyniki.
-        
-        Args:
-            query: Zapytanie SELECT
-            params: Parametry zapytania (opcjonalnie)
-
-        Returns:
-            Lista wierszy
+        Wykonaj zapytanie SQL
+        Returns: liczba zmienionych wierszy
         """
         if params:
             self.cursor.execute(query, params)
         else:
             self.cursor.execute(query)
-        return self.cursor.fetchall() # zwróć wszystkie wiersze
+        return self.cursor.rowcount
     
-    def fetch_one(self, query: str, params: Optional[Tuple] = None): # podobnie jak fetch_all, execute_query
+    def fetch_all(self, query: str, params: Optional[Tuple] = None):
         """
-        Wykonaj SELECT i pobierz jeden wynik
-
-        Args:
-            query: Zapytanie SELECT
-            params: Parametry zapytania (opcjonalnie)
-
-        Returns:
-            Jeden wiersz lub None
+        SELECT - pobierz wszystkie wyniki
+        Returns: lista wierszy
         """
         if params:
             self.cursor.execute(query, params)
         else:
             self.cursor.execute(query)
-        return self.cursor.fetchone() # zwróć jeden wiersz
+        return self.cursor.fetchall()
     
-    def bulk_insert(self, table: str, columns: list[str], data: List[Tuple]): # columns: List[str] = lista stringów
-        # data: List[Tuple] = lista krotek
+    def fetch_one(self, query: str, params: Optional[Tuple] = None):
         """
-        Bulk INSERT wielu rekordów naraz.
-
-        Args:
-            table: Nazwa tabeli
-            columns: Lista nazw kolumn
-            data: Lista tuple'i z danymi
-
-        Returns:
-            Liczba wstawionych wierszy
+        SELECT - pobierz jeden wynik
+        Returns: jeden wiersz lub None
+        """
+        if params:
+            self.cursor.execute(query, params)
+        else:
+            self.cursor.execute(query)
+        return self.cursor.fetchone()
+    
+    def bulk_insert(self, table: str, columns: List[str], data: List[Tuple]):
+        """
+        Bulk INSERT wielu rekordow
+        Returns: liczba wstawionych wierszy
         """
         placeholders = ', '.join(['?'] * len(columns))
-        # utwórz "?, ?, ?" (tyle '?' ile kolumn)
-        # Przykład: ['?', '?', '?'] → "?, ?, ?"
         columns_str = ', '.join(columns)
-        # połącz nazwy kolumn przecinkami - stąd też spacja po przecinku, tak jak w zapytaniu SQL
-        # przykład: ['produkt', 'ilosc', 'cena'] czyli "produkt, ilosc, cena"
         query = f"INSERT INTO {table} ({columns_str}) VALUES ({placeholders})"
-        # wstaw zmienne do zapytania
-        # wynik: "INSERT INTO TestSprzedaz (produkt, ilosc, cena) VALUES (?, ?, ?)"
-
+        
         self.cursor.executemany(query, data)
-        # wykonaj insert dla kazdego tuple w data
         return len(data)
-        # zwróc ile rekordów wstawiono
     
-    def get_count(self, table: str, where: Optional[str] = None): # nazwa tabeli: string
-        # warunek WHERE (string lub None), domyślnie None
+    def get_count(self, table: str, where: Optional[str] = None):
         """
         Policz rekordy w tabeli
-
-        Args:
-            table: Nazwa tabeli
-            where: warunek WHERE (opcjonalny)
-
-        Returns:
-            Liczba rekordów
+        Returns: liczba rekordow
         """
-        query = f"SELECT COUNT(*) FROM {table}" # wstawia nazwę tabeli
-        if where: # jeśli where jest podane (nie None i nie pusty string)
-            query += f" WHERE {where}" # dodaje do query (konkatenacja) - czyli query + WHERE ...
+        query = f"SELECT COUNT(*) FROM {table}"
+        if where:
+            query += f" WHERE {where}"
+        
+        result = self.fetch_one(query)
+        return result[0] if result else 0
 
-        result = self.fetch_one(query) # wywołuje metode fetch_one, zwraca tylko jeden wiersz
-        return result[0] if result else 0 # jeśli result istnieje zwróć result[0], jeśli None zwraca 0 - result[0] to pierwsza wartość, patrzymy po indeksie
-    
 
-# FUNKCJE POMOCNICZE
+# funkcje pomocnicze
 
 def get_credentials_from_file(filepath: str = "credentials.txt") -> dict:
-    # filepath: str = domyślnie "credentials.txt"
-    # -> dict - funkcja zwraca słownik
     """
-    Wczytaj credentials z pliku tekstowego.
-
-    Format pliku:
-    server=sql-praca.mateusz.database.windows.net
-    database=db-praca-inzynierska
-    username=sqladmin
-    password=Twoje_Haslo
-
-    Args:
-        filepath: Ścieżka do pliku z credentials
-
-    Returns:
-        Słownik z danymi logowania
+    Wczytaj credentials z pliku tekstowego
+    
+    Format:
+        server=sql-server.database.windows.net
+        database=db-name
+        username=user
+        password=pass
+    
+    Returns: slownik z danymi logowania
     """
-    credentials = {} # tworzymy pusty słownik
-
+    credentials = {}
+    
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
-            # otwórz plik do odczytu ('r' = read)
-            # encoding='utf-8' = obsługa polskich znaków
-            # with = automatyczne zamknięcie pliku
             for line in f:
-                line = line.strip() # line,strip() - usuń puste znaki z początku i końca
+                line = line.strip()
                 if '=' in line and not line.startswith('#'):
-                # jeśli linia zawiera '=' i nie zaczyna się od '#' - komentarza
                     key, value = line.split('=', 1)
-                    # split() podziel string na '=' i max 1 podział
-                    # Dlaczego 1?
-                    # "a=b=c".split('=', 1) → ["a", "b=c"] (tylko pierwszy =)
-                    # "a=b=c".split('=')    → ["a", "b", "c"] (wszystkie =)
                     credentials[key.strip()] = value.strip()
-                    # zapisz w słowniku, key.strip() - usuń spacje z klucza, value.strip() - usuń spacje z wartości
-    except:
-        print(f"Plik {filepath} nie istnieje!")
+    except FileNotFoundError:
+        print(f"File {filepath} not found!")
         return None
-        
-    return credentials
     
+    return credentials
+
+
 def print_table(rows, headers: List[str], widths: Optional[List[int]] = None):
     """
-    Wyświetl wyniki w formnie ładnej tabeli
+    Wyswietl wyniki w formie tabeli
 
     Args:
-        rows: Lista wierszy (Row object lub tuple)
-        headers: Nazwy kolumn
-        widths: Szerokości kolumn (opcjonalnie)
+        rows: lista wierszy (Row objects lub tuples)
+        headers: nazwy kolumn
+        widths: szerokosci kolumn (opcjonalnie)
     """
     if not widths:
         widths = [15] * len(headers)
-
-    # nagłowek
-    header_str = " | ".join([h.ljust(w) for h, w in zip(headers, widths)]) # h, w - to naglowki i szerokosc, join zaś łączy stringi uzywając "|" jako seperatora
-    # zip(headers, widths) - Połącz dwie listy w pary:
-    # [('id', 5), ('produkt', 20), ('ilosc', 8), ('cena', 10)]
-    # h.ljust(w) - 'left justify' czyli wyrównanie do lewej, wypełnij spacjali do szerokości w
+    
+    # naglowek
+    header_str = " | ".join([h.ljust(w) for h, w in zip(headers, widths)])
     print(header_str)
     print("=" * len(header_str))
-
+    
     # wiersze
     for row in rows:
         values = [str(getattr(row, h, '')) if hasattr(row, h) else str(row[i])
-            # hasattr(row, h) - sprawdza czy obiekt row ma aytrubut o naziwe h, czyli hasattr(row, 'produkt') → True (row.produkt istnieje)
-            # getattr(row, h, '') - pobiera wartości atrybutu o nazwie h, jeśli nie istnieje zwraca pusty string
-            for i, h in enumerate(headers)] # enumerate zwraca pary (indeks, wartość) dla każdego i, h
+                for i, h in enumerate(headers)]
         row_str = " | ".join([v.ljust(w)[:w] for v, w in zip(values, widths)])
-        # podobnie jak header_str
         print(row_str)
 
-# PRZYKŁAD UŻYCIA
-if __name__ == "__main__":
-    print("-" * 60)
-    print("db.utils.py - Test funkcji pomocniczych")
-    print("-" * 60)
 
+# przyklad uzycia
+if __name__ == "__main__":
+    print("db_utils.py - Test funkcji pomocniczych")
+    
     # dane logowania
     SERVER = 'sql-praca-mateusz.database.windows.net'
     DATABASE = 'db-praca-inzynierska'
     USERNAME = 'sqladmin'
-    PASSWORD = 'YourPasswordHere'  # uzupełnić
-
+    PASSWORD = 'YourPasswordHere'
+    
     try:
-        #użycie context managera (automatyczne zamknięcie) z with
+        # test context manager
         with AzureSQLConnection(SERVER, DATABASE, USERNAME, PASSWORD) as db:
-            # python wywołuje __enter__() czyli wywołuje połączenie
-            # db = self (zwrócone przez __enter__)
-            print("\nPołączona z Azure SQL!")
-
-            # Test 1: policz rekordy
+            print("\nConnected to Azure SQL!")
+            
+            # test 1: count
             count = db.get_count('TestSprzedaz')
-            print(f"\nLiczba rekordów: {count}")
-
-            # Test 2: Pobierz TOP 5
+            print(f"\nTotal records: {count}")
+            
+            # test 2: top 5
             rows = db.fetch_all("""
                 SELECT TOP 5 id, produkt, ilosc, cena
                 FROM TestSprzedaz
                 ORDER BY id DESC
             """)
-
-            print(f"\nTOP 5 rekordów:")
+            
+            print(f"\nTop 5 records:")
             print_table(rows, ['id', 'produkt', 'ilosc', 'cena'], [5, 20, 8, 10])
-
-            # Test 3: Statystyki
+            
+            # test 3: stats
             stats = db.fetch_one("""
                 SELECT
                     AVG(cena) as avg_price,
@@ -276,15 +200,15 @@ if __name__ == "__main__":
                     MAX(cena) as max_price
                 FROM TestSprzedaz
             """)
-
-            print("\nStatystyki:")
-            print(f"    Średnia cena: {stats.avg_price:.2f} zł")
-            print(f"    Min cena: {stats.min_price:.2f} zł")
-            print(f"    Max cena: {stats.max_price:.2f} zł")
-
-        print("\nTest zakończony pomyślnie!")
+            
+            print("\nStatistics:")
+            print(f"  Average price: {stats.avg_price:.2f} PLN")
+            print(f"  Min price: {stats.min_price:.2f} PLN")
+            print(f"  Max price: {stats.max_price:.2f} PLN")
+        
+        print("\nTest completed successfully!")
     
     except Exception as e:
-        print(f"Błąd: {e}")
-
-    input("\nNaciśnij Enter aby zakończyć...")
+        print(f"Error: {e}")
+    
+    input("\nPress Enter to exit...")

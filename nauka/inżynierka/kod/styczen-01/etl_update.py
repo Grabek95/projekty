@@ -7,10 +7,10 @@ from datetime import datetime
 # konfiguracja
 server = 'sql-praca-mateusz.database.windows.net'
 database = 'db-praca-inzynierska'
-username = 'sqladmin' 
-password = 'haslo' # wpisać właściwe hasło
+username = 'sqladmin'
+password = 'YOUR_PASSWORD'
 
-# Connection string
+# connection string
 conn_str = (
     f'Driver={{ODBC Driver 18 for SQL Server}};'
     f'Server=tcp:{server},1433;'
@@ -22,25 +22,25 @@ conn_str = (
     f'Connection Timeout=30;'
 )
 
-print("\nAktualizacja rekordów")
+print("UPDATE - modifying existing records")
 
-try: 
-    # połączenie
-    print("\n Łączę się z Azure SQL...")
+try:
+    # polaczenie
+    print("\nConnecting to Azure SQL...")
     conn = pyodbc.connect(conn_str)
     cursor = conn.cursor()
-    print("\n Połączono!")
+    print("Connected!")
 
-    # metoda 1 - pojedynczy rekord
-    print("\n Atkualizacja pojedynczego rekordu")
+    # metoda 1: pojedynczy rekord
+    print("\nSingle record UPDATE:")
 
-    # sprawdz cene przed zmiana
+    # sprawdz cene przed
     cursor.execute("SELECT produkt, cena FROM TestSprzedaz WHERE produkt = 'Tablet'")
     row = cursor.fetchone()
     if row:
-        print(f"Przed: {row.produkt} - cena: {row.cena}")
+        print(f"Before: {row.produkt} - price: {row.cena}")
 
-    # zmien cene rekordu
+    # zmien cene
     query = """
         UPDATE TestSprzedaz 
         SET cena = ? 
@@ -53,18 +53,18 @@ try:
     cursor.execute(query, nowa_cena, produkt)
     conn.commit()
 
-    # sprawdz cene po zmianie
+    # sprawdz po
     cursor.execute("SELECT produkt, cena FROM TestSprzedaz WHERE produkt = 'Tablet'")
     row = cursor.fetchone()
     if row:
-        print(f"Po: {row.produkt} - cena: {row.cena}")
+        print(f"After: {row.produkt} - price: {row.cena}")
 
-    print(f"Zaktualizowano: {produkt} - cena: {nowa_cena}")
+    print(f"Updated: {produkt} - new price: {nowa_cena}")
 
-    # metoda 2 - wiele rekordów
-    print("\n Aktualizacja wielu rekordów")
+    # metoda 2: wiele rekordow
+    print("\nBulk UPDATE:")
 
-    # podnosimy ceny produktow > 100zł o 10%
+    # podnies ceny > 100 PLN o 10%
     query = """
         UPDATE TestSprzedaz 
         SET cena = cena * 1.10
@@ -72,15 +72,14 @@ try:
     """
 
     cursor.execute(query)
-    rows_affected = cursor.rowcount # ile wierszy zostało zmienionych
+    rows_affected = cursor.rowcount
     conn.commit()
 
-    print(f"\n Podwyższone ceny {rows_affected} produktów o 10%")
+    print(f"Increased prices for {rows_affected} products by 10%")
 
-    # metoda 3 - update z wartoscia obliczona
-    print("\n Atkualizacja z wartością obliczoną")
+    # metoda 3: update z wartoscia obliczona
+    print("\nCalculated value UPDATE:")
 
-    # zmien ilosc powerbank na 10
     query = """
         UPDATE TestSprzedaz
         SET ilosc = ?
@@ -90,33 +89,33 @@ try:
     cursor.execute(query, 10, 'Powerbank')
     conn.commit()
 
-    print("\n Zaktualizowano ilość powerbank o 10")
+    print("Updated Powerbank quantity to 10")
 
-    # weryfikacja - pokaż zaktuazliowane dane
-    print("\n Weryfikacja - wszystkie rekordy")
+    # weryfikacja
+    print("\nVerification - all records:")
 
     cursor.execute("""
-            SELECT id, produkt, ilosc, cena
-            FROM TestSprzedaz
-            ORDER BY id
+        SELECT id, produkt, ilosc, cena
+        FROM TestSprzedaz
+        ORDER BY id
     """)
 
     rows = cursor.fetchall()
 
-    print("\nID | Produkt      | Ilość | Cena")
+    print("\nID | Product      | Qty   | Price")
     print("-" * 50)
     for row in rows:
         print(f"{row.id:2} | {row.produkt:12} | {row.ilosc:5} | {row.cena:7.2f}")
 
-    # Zamknij połączenie
+    # zamknij
     cursor.close()
     conn.close()
-    print("\n Połączenie zamknięte!")
+    print("\nConnection closed!")
 
 except pyodbc.Error as e:
-    print(f"\n Błąd bazy: {e}")
+    print(f"\nDatabase error: {e}")
 
 except Exception as e:
-    print(f"\n Błąd: {e}")
+    print(f"\nError: {e}")
 
-input("\n Naciśnij Enter aby zakończyć...")
+input("\nPress Enter to exit...")
